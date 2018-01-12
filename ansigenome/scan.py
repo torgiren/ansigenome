@@ -106,6 +106,8 @@ class Scan(object):
         """
         for key, value in sorted(self.roles.iteritems()):
             self.paths["role"] = os.path.join(self.roles_path, key)
+            self.paths["tasks"] = os.path.join(self.paths["role"], "tasks",
+                                                "main.yml")
             self.paths["meta"] = os.path.join(self.paths["role"], "meta",
                                               "main.yml")
             self.paths["readme"] = os.path.join(self.paths["role"],
@@ -189,11 +191,47 @@ class Scan(object):
             "defaults": self.defaults,
             "meta": self.gather_meta(),
             "readme": self.gather_readme(),
-            "dependencies": self.dependencies,
+            "dependencies": self.dependencies + self.gather_included_roles(),
             "total_dependencies": len(self.dependencies)
         }
 
         return fields
+
+    def gather_included_roles(self):
+        def _gather_included_roles_recursive(tasks):
+            if not tasks:
+                return []
+
+            included = []
+            include_file = None
+            for task in tasks:
+                if "include_role" in task:
+                    included.append(task.get("include_role")['name'])
+                elif "include" in task:
+                    include_file = task.get("include")
+                elif "include_tasks" in task:
+                    include_file = task.get("include_tasks")
+                elif "import_tasks" in task:
+                    include_file = task.get("import_tasks")
+                elif "block" in task:
+                    included.extend(_gather_included_roles_recursive(task['block']))
+                if include_file:
+                    # TODO: check playbooks dir, and role dir
+                    include_path = os.path.join(os.path.dirname(self.paths["tasks"]),include_file)
+                    if not os.path.exists(include_path):
+                        include_path = os.path.join(os.path.dirname(self.paths["role"]),include_file)
+                    if not os.path.exists(include_path):
+                        continue
+
+                    tasks = utils.yaml_load(include_path)
+                    included.extend(_gather_included_roles_recursive(tasks))
+            return included
+
+        if not os.path.exists(self.paths["tasks"]):
+            return []
+        tasks = utils.yaml_load(self.paths["tasks"])
+
+        return _gather_included_roles_recursive(tasks)
 
     def gather_meta(self):
         """

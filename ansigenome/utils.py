@@ -13,6 +13,8 @@ import yaml
 from jinja2 import DictLoader
 from jinja2.environment import Environment
 
+import glob
+
 import constants as c
 import ui as ui
 
@@ -353,7 +355,8 @@ def is_role(path):
     seems_legit = False
     for folder in c.ANSIBLE_FOLDERS:
         if os.path.exists(os.path.join(path, folder)):
-            seems_legit = True
+            if glob.glob(os.path.join(path, folder, "*yml")):
+                seems_legit = True
 
     return seems_legit
 

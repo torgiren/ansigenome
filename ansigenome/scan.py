@@ -1,6 +1,7 @@
 import re
 import os
 import sys
+import glob
 
 import constants as c
 import ui as ui
@@ -229,9 +230,12 @@ class Scan(object):
 
         if not os.path.exists(self.paths["tasks"]):
             return []
-        tasks = utils.yaml_load(self.paths["tasks"])
-
-        return _gather_included_roles_recursive(tasks)
+        tasks_dir = os.path.dirname(self.paths["tasks"])
+        included_result = []
+        for tasks_file in glob.glob(tasks_dir + "/*.yml"):
+            tasks = utils.yaml_load(tasks_file)
+            included_result += _gather_included_roles_recursive(tasks)
+        return included_result
 
     def gather_meta(self):
         """
